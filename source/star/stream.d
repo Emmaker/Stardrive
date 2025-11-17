@@ -105,3 +105,15 @@ final class StringStream : ReadableStream, SeekableStream
         return index;
     }
 }
+
+final class StringBuilderStream : WritableStream
+{
+    private char[] builder;
+
+    ulong write(scope byte[] bytes)
+    {
+        ulong length = builder.length;
+        builder ~= cast(char[]) bytes;
+        return builder.length - length;
+    }
+}
