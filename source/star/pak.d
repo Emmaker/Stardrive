@@ -1,5 +1,6 @@
 module star.pak;
 
+import std.exception;
 import star.sbon;
 
 struct PAKHeader
@@ -25,7 +26,7 @@ struct PAKMeta
 
 PAKHeader parsePAKHeader(char[16] str)
 {
-    enforce!Exception(str[0 .. 8] == PAKHEader.magic,
+    enforce!Exception(str[0 .. 8] == PAKHeader.magic,
         "Header magic is not valid");
 
     auto header = new PAKHeader();

@@ -10,6 +10,7 @@ https://github.com/blixt/py-starbound/blob/master/FORMATS.md#sbon
 module star.sbon;
 
 import std.file;
+import std.exception;
 import star.vlq;
 
 enum SBONType : byte
@@ -44,37 +45,37 @@ struct SBONValue
     this(double double_)
     {
         this.typeTag = SBONType.double_;
-        this.double_ = double_;
+        this.Store.double_ = double_;
     }
 
     this(bool bool_)
     {
         this.typeTag = SBONType.bool_;
-        this.bool_ = bool_;
+        this.Store.bool_ = bool_;
     }
 
     this(long varint)
     {
         this.typeTag = SBONType.varint;
-        this.varint = varint;
+        this.Store.varint = varint;
     }
 
     this(string str)
     {
         this.typeTag = SBONType.string;
-        this.str = str;
+        this.Store.str = str;
     }
 
     this(SBONList list)
     {
         this.typeTag = SBONType.list;
-        this.list = list;
+        this.Store.list = list;
     }
 
     this(SBONMap map)
     {
         this.typeTag = SBONType.map;
-        this.map = map;
+        this.Store.map = map;
     }
 
     @property SBONType type() const pure nothrow @safe @nogc

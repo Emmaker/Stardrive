@@ -3,8 +3,10 @@ import std.stdio;
 import std.file;
 import star.sbon;
 import star.pak;
+import star.stream;
 import std.conv;
 import core.stdc.stdlib;
+import std.format;
 
 int main(string[] args)
 {
@@ -29,7 +31,7 @@ int main(string[] args)
             "v|verbose", "Print additional info to console", &verbose,
             "extract", "Extract files from a .pak archive", &extract,
             "package", "Package files into a .pak archive", &archive,
-            "f|force", "Ignore potential errors", &force,
+            "f|force", "Ignore minor errors", &force,
             config.required,
             "o|out", "File/directory to output", &outOpt,
             config.required,
@@ -59,24 +61,26 @@ int main(string[] args)
     else if (extract)
     {
         if (!std.file.exists(inOpt))
-        {
-            err(format("%s does not exist"), inOpt);
-        }
+            err(format("%s does not exist", inOpt));
         if (!std.file.isFile(inOpt))
-        {
             err(format("%s is not file", inOpt));
+
+        if (std.file.exists(outOpt))
+        {
+            if (!force)
+                err(format("%s already exists", outOpt));
+            if (!std.file.isDir(outOpt))
+                err(format("%s is not a directory", outOpt));
         }
+
+        auto fstream = new FileStream(inOpt);
     }
     else if (archive)
     {
         if (!std.file.exists(inOpt))
-        {
-            err(format("%s does not exist"), inOpt);
-        }
+            err(format("%s does not exist", inOpt));
         if (!std.file.isDir(inOpt))
-        {
-            err(format("%s is not a directory"), inOpt);
-        }
+            err(format("%s is not a directory", inOpt));
     }
     else
     {
