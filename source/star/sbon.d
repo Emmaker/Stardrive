@@ -1,25 +1,17 @@
-/** 
-"Starbound Binary Object Notation"
-
-SBON is the binary equivalent of JSON Starbound uses for almost every on-disk
-format not meant for human readability.
-
-The name was originally coined by the py-starbound library:
-https://github.com/blixt/py-starbound/blob/master/FORMATS.md#sbon
- */
 module star.sbon;
 
-import std.file;
 import std.exception;
+import std.bitmanip;
+import star.stream;
 import star.vlq;
 
 enum SBONType : byte
 {
-    null_ = 1,
-    double_ = 2,
-    bool_ = 3,
-    varint = 4,
-    string = 5,
+    nil = 1,
+    dbl = 2,
+    boolean = 3,
+    number = 4,
+    str = 5,
     list = 6,
     map = 7
 }
@@ -31,226 +23,184 @@ struct SBONValue
 {
     union Store
     {
-        double double_;
-        bool bool_;
-        long varint;
+        double dbl;
+        bool boolean;
+        ulong number;
         string str;
         SBONList list;
         SBONMap map;
     }
 
-    private SBONType typeTag = SBONType.null_;
+    private SBONType tag = SBONType.nil;
     private Store store;
 
-    this(double double_)
+    this(double dbl) pure nothrow
     {
-        this.typeTag = SBONType.double_;
-        this.Store.double_ = double_;
+        tag = SBONType.dbl;
+        store.dbl = dbl;
     }
 
-    this(bool bool_)
+    this(bool boolean) pure nothrow
     {
-        this.typeTag = SBONType.bool_;
-        this.Store.bool_ = bool_;
+        tag = SBONType.boolean;
+        store.boolean = boolean;
     }
 
-    this(long varint)
+    this(ulong number) pure nothrow
     {
-        this.typeTag = SBONType.varint;
-        this.Store.varint = varint;
+        tag = SBONType.number;
+        store.number = number;
     }
 
-    this(string str)
+    this(string str) pure nothrow
     {
-        this.typeTag = SBONType.string;
-        this.Store.str = str;
+        tag = SBONType.str;
+        store.str = str;
     }
 
-    this(SBONList list)
+    this(SBONList list) pure nothrow
     {
-        this.typeTag = SBONType.list;
-        this.Store.list = list;
+        tag = SBONType.list;
+        store.list = list;
     }
 
-    this(SBONMap map)
+    this(SBONMap map) pure nothrow
     {
-        this.typeTag = SBONType.map;
-        this.Store.map = map;
+        tag = SBONType.map;
+        store.map = map;
     }
 
-    @property SBONType type() const pure nothrow @safe @nogc
+    @property SBONType type() const pure nothrow
     {
-        return this.typeTag;
+        return tag;
     }
 
-    @property double double_() const pure @trusted return scope
+    @property double dbl() const pure
     {
-        enforce!Exception(typeTag == SBONType.double_,
-            "SBONValue is not a double");
-        return store.double_;
+        enforce!Exception(tag == SBONType.dbl,
+            "SBONValue is not double");
+        return store.dbl;
     }
 
-    @property bool bool_() const pure @trusted return scope
+    @property bool boolean() const pure
     {
-        enforce!Exception(typeTag == SBONType.bool_,
-            "SBONValue is not a bool");
-        return store.bool_;
+        enforce!Exception(tag == SBONType.boolean,
+            "SBONValue is not boolean");
+        return store.boolean;
     }
 
-    @property long varint() const pure @trusted return scope
+    @property ulong number() const pure
     {
-        enforce!Exception(typeTag == SBONType.varint,
-            "SBONValue is not a varint");
-        return store.varint;
+        enforce!Exception(tag == SBONType.number,
+            "SBONValue is not number");
+        return store.number;
     }
 
-    @property string str() const pure @trusted return scope
+    @property string str() const pure
     {
-        enforce!Exception(typeTag == SBONType.string,
-            "SBONValue is not a string");
+        enforce!Exception(tag == SBONType.str,
+            "SBONValue is not string");
         return store.str;
     }
 
-    @property SBONList list() const pure @trusted return scope
+    @property const(SBONList) list() const pure
     {
-        enforce!Exception(typeTag == SBONType.list,
-            "SBONValue is not a list");
+        enforce!Exception(tag == SBONType.list,
+            "SBONValue is not list");
         return store.list;
     }
 
-    @property SBONMap map() const pure @trusted return scope
+    @property const(SBONMap) map() const pure
     {
-        enforce!Exception(typeTag == SBONType.map,
-            "SBONValue is not a map");
+        enforce!Exception(tag == SBONType.map,
+            "SBONValue is not map");
         return store.map;
     }
 }
 
-SBONValue parseSBON(string sbon)
+SBONValue* readSBON(ReadableStream stream)
 {
-    int index = 0;
-    return parseSBON(sbon, index);
-}
-
-SBONValue parseSBON(string sbon, ref int index)
-{
-    static byte[] readBytes(int size)
+    ubyte tag = stream.read(1)[0];
+    switch (tag)
     {
-        byte[] ret = sbon[index .. index + size];
-        index += size;
-        return ret;
-    }
-
-    static ulong readVLQ()
-    {
-        ubyte[] varBytes;
-        ubyte varByte;
-        do
-        {
-            varBytes ~= [(varByte = readBytes(1))];
-        }
-        while (varByte & 0x80);
-        return decodeVLQ(varBytes);
-    }
-
-    static string readString()
-    {
-        string str;
-        char c = 0;
-        do
-        {
-            str ~= [(c = readBytes(1))];
-        }
-        while (c != '\0');
-        return str;
-    }
-
-    byte type = readBytes(1);
-    switch (type)
-    {
-    case SBONType.null_:
+    case SBONType.nil:
         return new SBONValue();
-
-    case SBONType.double_:
-        return new SBONValue(*cast(double*)&readBytes(double.sizeof));
-
-    case SBONType.bool_:
-        return new SBONValue(cast(bool) readBytes(1)[0]);
-
-    case SBONType.varint:
-        return new SBONValue(readVLQ());
-
-    case SBONType.string:
-        return SBONValue(readString());
-
+    case SBONType.dbl:
+        ubyte[double.sizeof] bytes = stream.read(double.sizeof);
+        return new SBONValue(littleEndianToNative!double(bytes));
+    case SBONType.boolean:
+        ubyte[1] bytes = stream.read(1);
+        return new SBONValue(littleEndianToNative!bool(bytes));
+    case SBONType.number:
+        return new SBONValue(decodeVLQ(stream));
+    case SBONType.str:
+        return new SBONValue(readStringz(stream));
     case SBONType.list:
-        ulong count = readVLQ();
-        auto list = new SBONValue[count];
-
+        ulong count = decodeVLQ(stream);
+        SBONList list;
         for (int i = 0; i < count; i++)
-        {
-            list[i] = parseSBON(sbon, index);
-        }
+            list[i] = *readSBON(stream);
         return new SBONValue(list);
-
     case SBONType.map:
-        ulong count = readVLQ();
-        auto map = new SBONMap[count];
-
+        ulong count = decodeVLQ(stream);
+        SBONMap map;
         for (int i = 0; i < count; i++)
-        {
-            map[readString()] = parseSBON(sbon, index);
-        }
+            map[readStringz(stream)] = *readSBON(stream);
         return new SBONValue(map);
-
     default:
-        continue;
+        // fallthrough
     }
-
-    assert(0, format("Unrecognized type: %x", type));
+    assert(0, "Unrecognized SBON tag");
 }
 
-string toSBON(ref const SBONValue root)
+void writeSBON(ref WritableStream stream, const SBONValue* root)
 {
-    string ret;
-    ret ~= root.type;
+    void writeTag()
+    {
+        stream.write(nativeToLittleEndian(root.type));
+    }
 
     switch (root.type)
     {
-    case SBONType.null_:
-        break;
-
-    case SBONType.double_:
-        ret ~= root.double_();
-        break;
-
-    case SBONType.bool_:
-        ret ~= root.bool_() ? cast(char) 1 : '\0';
-        break;
-
-    case SBONType.varint:
-        ret ~= cast(char[]) encodeVLQ(root.value);
-        break;
-
-    case SBONType.string:
-        ret ~= root.str();
-        break;
-
+    case SBONType.nil:
+        writeTag();
+        return;
+    case SBONType.dbl:
+        writeTag();
+        stream.write(nativeToLittleEndian(root.dbl));
+        return;
+    case SBONType.boolean:
+        writeTag();
+        stream.write(nativeToLittleEndian(root.boolean));
+        return;
+    case SBONType.number:
+        writeTag();
+        encodeVlQ(stream, root.number);
+        return;
+    case SBONType.str:
+        writeTag();
+        writeStringz(stream, root.str);
+        return;
     case SBONType.list:
-        auto list = root.list();
-        for (int i = 0; i < list.length; i++)
-            ret ~= toSBON(list[i]);
-        break;
-
+        writeTag();
+        ulong length = root.list.length;
+        encodeVlQ(stream, length);
+        for (int i = 0; i < length; i++)
+            writeSBON(stream, &root.list[i]);
+        return;
     case SBONType.map:
-        auto map = root.map();
-        foreach (string key; map)
-            ret ~= key ~= toSBON(map[key]);
-        break;
-
+        writeTag();
+        const SBONMap map = root.map;
+        ulong length = map.length;
+        encodeVlQ(stream, length);
+        foreach (key; map.byKey)
+        {
+            writeStringz(stream, key);
+            writeSBON(stream, &map[key]);
+        }
+        return;
     default:
-        assert(0, format("Unrecognized type: %x", root.type));
+        // fallthrough
     }
-
-    return ret;
+    assert(0, "Unrecognized SBON tag");
 }

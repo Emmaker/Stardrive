@@ -1,17 +1,34 @@
 module star.stream;
 
 import std.exception;
+import std.conv;
 import std.string;
 import core.stdc.stdio;
 
 interface ReadableStream
 {
-    byte[] read(scope ulong length);
+    ubyte[] read(scope ulong length);
+}
+
+string readStringz(ReadableStream stream)
+{
+    char[] carr;
+    char c;
+    while ((c = stream.read(1)[0]) != '\0')
+        carr ~= c;
+    return text(carr);
 }
 
 interface WritableStream
 {
-    ulong write(scope byte[] bytes);
+    ulong write(scope ubyte[] bytes);
+}
+
+void writeStringz(WritableStream stream, string str)
+{
+    ubyte[] carr = cast(ubyte[]) str.dup;
+    carr ~= "\0";
+    stream.write(carr);
 }
 
 interface SeekableStream
@@ -40,7 +57,7 @@ final class FileStream : ReadableStream, WritableStream, SeekableStream
         index = 0;
         FILE* open = fopen(toStringz(path), "rw\0");
 
-        enforce!Exception(open != 0,
+        enforce!Exception(cast(ulong) open != ulong(0),
             format("Could not open file at %s", path));
 
         this.file = open;
@@ -51,9 +68,10 @@ final class FileStream : ReadableStream, WritableStream, SeekableStream
         fclose(file);
     }
 
-    byte[] read(scope ulong len)
+    ubyte[] read(scope ulong len)
     {
-        byte[len] buf;
+        ubyte[] buf;
+        buf.reserve(len);
 
         ulong diff = fread(buf.ptr, 1, len, file);
         this.index += diff;
@@ -61,7 +79,7 @@ final class FileStream : ReadableStream, WritableStream, SeekableStream
         return buf[0 .. (len - diff)];
     }
 
-    ulong write(scope byte[] bytes)
+    ulong write(scope ubyte[] bytes)
     {
         size_t diff = fwrite(bytes.ptr, 1, bytes.length, file);
         this.index += diff;
@@ -83,18 +101,18 @@ final class FileStream : ReadableStream, WritableStream, SeekableStream
 
 final class StringStream : ReadableStream, SeekableStream
 {
-    private const string *str;
+    private const string str;
     private ulong index;
 
-    this (const string *str)
+    this(const string str)
     {
         index = 0;
         this.str = str;
     }
 
-    byte[] read(scope ulong len)
+    ubyte[] read(scope ulong len)
     {
-        byte[] ret = str[index .. index + len];
+        ubyte[] ret = cast(ubyte[]) str[index .. index + len].dup;
         index += len;
         return ret;
     }
@@ -104,13 +122,18 @@ final class StringStream : ReadableStream, SeekableStream
         index = (pos) < str.length ? pos : str.length;
         return index;
     }
+
+    @property ulong pos()
+    {
+        return index;
+    }
 }
 
 final class StringBuilderStream : WritableStream
 {
     private char[] builder;
 
-    ulong write(scope byte[] bytes)
+    ulong write(scope ubyte[] bytes)
     {
         ulong length = builder.length;
         builder ~= cast(char[]) bytes;

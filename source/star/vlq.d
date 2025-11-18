@@ -4,6 +4,7 @@ import std.stdio;
 import std.range;
 import std.array;
 import std.conv;
+import star.stream;
 
 /**
  * Encodes an integer into a variable-length quantity (VLQ) byte array.
@@ -11,26 +12,32 @@ import std.conv;
  * @param value The integer to encode.
  * @return A byte array representing the VLQ-encoded integer.
  */
-ubyte[] encodeVLQ(long value) {
+ubyte[] encodeVLQ(long value)
+{
     ubyte[] result;
-
-    if (value == 0) {
+    if (value == 0)
+    {
         result ~= 0;
         return result;
     }
 
-    while (value > 0) {
+    while (value > 0)
+    {
         ubyte byteVal = value & 0x7F;
         value >>= 7;
-
-        if (value != 0) {
+        if (value != 0)
+        {
             byteVal |= 0x80;
         }
-
         result ~= byteVal;
     }
-
     return result;
+}
+
+void encodeVlQ(ref WritableStream stream, long value)
+{
+    ubyte[] bytes = encodeVLQ(value);
+    stream.write(bytes);
 }
 
 /**
@@ -39,17 +46,30 @@ ubyte[] encodeVLQ(long value) {
  * @param bytes The byte array to decode.
  * @return The decoded integer.
  */
-ulong decodeVLQ(ubyte[] bytes) {
+ulong decodeVLQ(ubyte[] bytes)
+{
     ulong result = 0;
-
-    foreach (byteVal; bytes) {
+    foreach (byteVal; bytes)
+    {
         result <<= 7;
         result |= byteVal & 0x7F;
 
-        if ((byteVal & 0x80) == 0) {
+        if ((byteVal & 0x80) == 0)
+        {
             break;
         }
     }
-
     return result;
+}
+
+ulong decodeVLQ(ReadableStream stream)
+{
+    ubyte[] vlq;
+    ubyte v;
+    do
+    {
+        vlq ~= (v = stream.read(1)[0]);
+    }
+    while (v & 0x80);
+    return decodeVLQ(vlq);
 }
