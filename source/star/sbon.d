@@ -136,24 +136,34 @@ SBONValue* readSBON(ReadableStream stream)
     case SBONType.str:
         return new SBONValue(readStringz(stream));
     case SBONType.list:
-        ulong count = decodeVLQ(stream);
-        SBONList list;
-        for (int i = 0; i < count; i++)
-            list[i] = *readSBON(stream);
-        return new SBONValue(list);
+        return new SBONValue(readSBONList(stream));
     case SBONType.map:
-        ulong count = decodeVLQ(stream);
-        SBONMap map;
-        for (int i = 0; i < count; i++)
-            map[readStringz(stream)] = *readSBON(stream);
-        return new SBONValue(map);
+        return new SBONValue(readSBONMap(stream));
     default:
         // fallthrough
     }
     assert(0, "Unrecognized SBON tag");
 }
 
-void writeSBON(ref WritableStream stream, const SBONValue* root)
+SBONList readSBONList(ReadableStream stream)
+{
+    ulong count = decodeVLQ(stream);
+    SBONList list;
+    for (int i = 0; i < count; i++)
+        list[i] = *readSBON(stream);
+    return list;
+}
+
+SBONMap readSBONMap(ReadableStream stream)
+{
+    ulong count = decodeVLQ(stream);
+    SBONMap map;
+    for (int i = 0; i < count; i++)
+        map[readStringz(stream)] = *readSBON(stream);
+    return map;
+}
+
+void writeSBON(WritableStream stream, const SBONValue* root)
 {
     void writeTag()
     {
@@ -183,24 +193,33 @@ void writeSBON(ref WritableStream stream, const SBONValue* root)
         return;
     case SBONType.list:
         writeTag();
-        ulong length = root.list.length;
-        encodeVlQ(stream, length);
-        for (int i = 0; i < length; i++)
-            writeSBON(stream, &root.list[i]);
+        writeSBONList(stream, root.list);
         return;
     case SBONType.map:
         writeTag();
-        const SBONMap map = root.map;
-        ulong length = map.length;
-        encodeVlQ(stream, length);
-        foreach (key; map.byKey)
-        {
-            writeStringz(stream, key);
-            writeSBON(stream, &map[key]);
-        }
+        writeSBONMap(stream, root.map);
         return;
     default:
         // fallthrough
     }
     assert(0, "Unrecognized SBON tag");
+}
+
+void writeSBONList(WritableStream stream, const SBONList list)
+{
+    ulong length = list.length;
+    encodeVlQ(stream, length);
+    for (int i = 0; i < length; i++)
+        writeSBON(stream, &list[i]);
+}
+
+void writeSBONMap(WritableStream stream, const SBONMap map)
+{
+    ulong length = map.length;
+    encodeVlQ(stream, length);
+    foreach (key; map.byKey)
+    {
+        writeStringz(stream, key);
+        writeSBON(stream, &map[key]);
+    }
 }

@@ -5,6 +5,7 @@ import std.conv;
 import std.path;
 import std.format;
 import core.stdc.stdlib;
+
 import star.sbon;
 import star.stream;
 import star.sbasset;
@@ -77,7 +78,8 @@ int main(string[] args)
                 err(format("%s is not a directory", output));
         }
 
-        SBAsset6 pak = SBAsset6.loadFromFile(inPath);
+        auto stream = new FileStream(inPath);
+        auto assets = SBAsset6.loadFromStream(stream);
     }
     else if (archive)
     {
