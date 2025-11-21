@@ -1,12 +1,13 @@
 import std.getopt;
 import std.stdio;
 import std.file;
-import star.sbon;
-import star.pak;
-import star.stream;
 import std.conv;
-import core.stdc.stdlib;
+import std.path;
 import std.format;
+import core.stdc.stdlib;
+import star.sbon;
+import star.stream;
+import star.sbasset;
 
 int main(string[] args)
 {
@@ -14,8 +15,8 @@ int main(string[] args)
     bool extract = false;
     bool archive = false;
     bool force = false;
-    string outOpt = null;
-    string inOpt = null;
+    string output = null;
+    string input = null;
 
     static noreturn err(string str)
     {
@@ -33,9 +34,9 @@ int main(string[] args)
             "package", "Package files into a .pak archive", &archive,
             "f|force", "Ignore minor errors", &force,
             config.required,
-            "o|out", "File/directory to output", &outOpt,
+            "o|out", "File/directory to output", &output,
             config.required,
-            "i|in", "File/directory to extract/package", &inOpt,
+            "i|in", "File/directory to extract/package", &input,
         );
     }
     catch (std.conv.ConvException e)
@@ -46,6 +47,9 @@ int main(string[] args)
     {
         err(e.msg);
     }
+
+    auto inPath = absolutePath(input);
+    auto outPath = absolutePath(output);
 
     if (opts.helpWanted)
     {
@@ -60,31 +64,31 @@ int main(string[] args)
     }
     else if (extract)
     {
-        if (!std.file.exists(inOpt))
-            err(format("%s does not exist", inOpt));
-        if (!std.file.isFile(inOpt))
-            err(format("%s is not file", inOpt));
+        if (!std.file.exists(inPath))
+            err(format("%s does not exist", input));
+        if (!std.file.isFile(inPath))
+            err(format("%s is not file", input));
 
-        if (std.file.exists(outOpt))
+        if (std.file.exists(output))
         {
             if (!force)
-                err(format("%s already exists", outOpt));
-            if (!std.file.isDir(outOpt))
-                err(format("%s is not a directory", outOpt));
+                err(format("%s already exists", output));
+            if (!std.file.isDir(outPath))
+                err(format("%s is not a directory", output));
         }
 
-        auto fstream = new FileStream(inOpt);
+        SBAsset6 pak = SBAsset6.loadFromFile(inPath);
     }
     else if (archive)
     {
-        if (!std.file.exists(inOpt))
-            err(format("%s does not exist", inOpt));
-        if (!std.file.isDir(inOpt))
-            err(format("%s is not a directory", inOpt));
+        if (!std.file.exists(inPath))
+            err(format("%s does not exist", input));
+        if (!std.file.isDir(inPath))
+            err(format("%s is not a directory", input));
     }
     else
     {
-        err("Option extract or archive is required\nUse --help to get usage info");
+        err("Option extract or archive is required");
         return 1;
     }
 

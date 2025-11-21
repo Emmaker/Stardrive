@@ -3,7 +3,7 @@ module star.stream;
 import std.exception;
 import std.conv;
 import std.string;
-import core.stdc.stdio;
+import std.stdio;
 
 interface ReadableStream
 {
@@ -49,51 +49,42 @@ interface SeekableStream
 
 final class FileStream : ReadableStream, WritableStream, SeekableStream
 {
-    private FILE* file;
+    private File file;
     private ulong index;
 
     this(const string path)
     {
-        index = 0;
-        FILE* open = fopen(toStringz(path), "rw\0");
-
-        enforce!Exception(cast(ulong) open != ulong(0),
-            format("Could not open file at %s", path));
-
-        this.file = open;
+        this.file = File(path, "rw");
+        index = file.tell();
     }
 
     ~this()
     {
-        fclose(file);
+        file.close();
     }
 
     ubyte[] read(scope ulong len)
     {
-        ubyte[] buf;
-        buf.reserve(len);
+        ubyte[] buf = new ubyte[len];
+        buf = file.rawRead!ubyte(buf);
 
-        ulong diff = fread(buf.ptr, 1, len, file);
-        this.index += diff;
-
-        return buf[0 .. (len - diff)];
+        return buf;
     }
 
     ulong write(scope ubyte[] bytes)
     {
-        size_t diff = fwrite(bytes.ptr, 1, bytes.length, file);
-        this.index += diff;
-
-        return diff;
+        file.rawWrite!ubyte(bytes);
+        return bytes.length;
     }
 
     ulong seek(scope ulong pos)
     {
-        this.index = fseek(file, pos, SEEK_SET);
-        return this.index;
+        file.seek(pos, SEEK_SET);
+        index = pos;
+        return index;
     }
 
-    @property ulong pos() const
+    @property ulong pos()
     {
         return index;
     }
@@ -138,5 +129,10 @@ final class StringBuilderStream : WritableStream
         ulong length = builder.length;
         builder ~= cast(char[]) bytes;
         return builder.length - length;
+    }
+
+    string finalize()
+    {
+        return cast(string) builder;
     }
 }

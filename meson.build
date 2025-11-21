@@ -4,12 +4,17 @@ inc = include_directories('source')
 # where common_src is defined
 subdir('source')
 
-common = static_library('common', common_src, include_directories: inc)
-common_dep = declare_dependency(link_with: common)
+sdl = dependency('sdl-d', method: 'dub')
+
+executable(
+    'stardrive',
+    common_src,
+    include_directories: inc
+)
 
 executable(
     'assetpak',
     'source/assetpak.d',
-    include_directories: inc,
-    dependencies: [common_dep],
+    common_src,
+    include_directories: inc
 )
