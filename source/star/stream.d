@@ -7,81 +7,90 @@ import std.stdio;
 
 interface ReadableStream
 {
-    ubyte[] read(scope ulong length);
-}
-
-string readStringz(ReadableStream stream)
-{
-    char[] carr;
-    char c;
-    while ((c = stream.read(1)[0]) != '\0')
-        carr ~= c;
-    return text(carr);
+    ubyte[] read(ulong length);
+    // T[] rawRead(T)(T[] buf);
 }
 
 interface WritableStream
 {
-    ulong write(scope ubyte[] bytes);
-}
-
-void writeStringz(WritableStream stream, string str)
-{
-    ubyte[] carr = cast(ubyte[]) str.dup;
-    carr ~= "\0";
-    stream.write(carr);
+    void write(ubyte[] bytes);
+    // void rawWrite(T)(T[] buf);
 }
 
 interface SeekableStream
 {
-    ulong seek(scope ulong position);
+    void seek(ulong position);
     @property ulong pos();
 
-    void opBinary(string op : ">>")(const int offset) const
+    void opBinary(string op : ">>")(const int offset)
     {
-        seek(pos() + offset);
+        seek(pos + offset);
     }
 
-    void opBinary(string op : "<<")(const int offset) const
+    void opBinary(string op : "<<")(const int offset)
     {
-        seek(pos() - offset);
+        seek(pos - offset);
     }
 }
 
 final class FileStream : ReadableStream, WritableStream, SeekableStream
 {
-    private File file;
+    private File *file;
     private ulong index;
 
     this(const string path)
     {
-        this.file = File(path, "rw");
+        this(new File(path, "rw"));
+    }
+
+    this (File *file)
+    {
+        this.file = file;
         index = file.tell();
     }
 
     ~this()
     {
+        file.detach();
+    }
+
+    void close()
+    {
         file.close();
     }
 
-    ubyte[] read(scope ulong len)
+    ubyte[] read(ulong len)
     {
         ubyte[] buf = new ubyte[len];
-        buf = file.rawRead!ubyte(buf);
+        index += len;
+        file.rawRead!ubyte(buf);
 
         return buf;
     }
 
-    ulong write(scope ubyte[] bytes)
+    T[] rawRead(T)(T[] buf)
     {
-        file.rawWrite!ubyte(bytes);
-        return bytes.length;
+        auto slice = file.rawRead!T(buf);
+        index += slice.length;
+        return slice;
     }
 
-    ulong seek(scope ulong pos)
+    void write(ubyte[] bytes)
+    {
+        file.rawWrite!ubyte(bytes);
+        index += bytes.length;
+    }
+
+    void rawWrite(T)(T[] buf)
+    {
+        auto slice = file.rawWrite!T(buf);
+        index += slice.length;
+    }
+
+    void seek(ulong pos)
     {
         file.seek(pos, SEEK_SET);
-        index = pos;
-        return index;
+        index = file.tell();
     }
 
     @property ulong pos()
@@ -101,17 +110,16 @@ final class StringStream : ReadableStream, SeekableStream
         this.str = str;
     }
 
-    ubyte[] read(scope ulong len)
+    ubyte[] read(ulong len)
     {
         ubyte[] ret = cast(ubyte[]) str[index .. index + len].dup;
         index += len;
         return ret;
     }
 
-    ulong seek(scope ulong pos)
+    void seek(ulong pos)
     {
         index = (pos) < str.length ? pos : str.length;
-        return index;
     }
 
     @property ulong pos()
@@ -124,11 +132,10 @@ final class StringBuilderStream : WritableStream
 {
     private char[] builder;
 
-    ulong write(scope ubyte[] bytes)
+    void write(ubyte[] bytes)
     {
         ulong length = builder.length;
         builder ~= cast(char[]) bytes;
-        return builder.length - length;
     }
 
     string finalize()

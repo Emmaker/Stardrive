@@ -134,7 +134,7 @@ SBONValue* readSBON(ReadableStream stream)
     case SBONType.number:
         return new SBONValue(decodeVLQ(stream));
     case SBONType.str:
-        return new SBONValue(readStringz(stream));
+        return new SBONValue(readSBONString(stream));
     case SBONType.list:
         return new SBONValue(readSBONList(stream));
     case SBONType.map:
@@ -143,6 +143,13 @@ SBONValue* readSBON(ReadableStream stream)
         // fallthrough
     }
     assert(0, "Unrecognized SBON tag");
+}
+
+string readSBONString(ReadableStream stream)
+{
+    ulong length = decodeVLQ(stream);
+    char[] carr = cast(char[]) stream.read(length);
+    return cast(string) carr;
 }
 
 SBONList readSBONList(ReadableStream stream)
@@ -159,7 +166,7 @@ SBONMap readSBONMap(ReadableStream stream)
     ulong count = decodeVLQ(stream);
     SBONMap map;
     for (int i = 0; i < count; i++)
-        map[readStringz(stream)] = *readSBON(stream);
+        map[readSBONString(stream)] = *readSBON(stream);
     return map;
 }
 
@@ -185,11 +192,12 @@ void writeSBON(WritableStream stream, const SBONValue* root)
         return;
     case SBONType.number:
         writeTag();
-        encodeVlQ(stream, root.number);
+        encodeVLQ(stream, root.number);
         return;
     case SBONType.str:
         writeTag();
-        writeStringz(stream, root.str);
+        encodeVLQ(stream, root.str.length);
+        stream.write(cast(ubyte[]) root.str);
         return;
     case SBONType.list:
         writeTag();
@@ -208,7 +216,7 @@ void writeSBON(WritableStream stream, const SBONValue* root)
 void writeSBONList(WritableStream stream, const SBONList list)
 {
     ulong length = list.length;
-    encodeVlQ(stream, length);
+    encodeVLQ(stream, length);
     for (int i = 0; i < length; i++)
         writeSBON(stream, &list[i]);
 }
@@ -216,10 +224,11 @@ void writeSBONList(WritableStream stream, const SBONList list)
 void writeSBONMap(WritableStream stream, const SBONMap map)
 {
     ulong length = map.length;
-    encodeVlQ(stream, length);
+    encodeVLQ(stream, length);
     foreach (key; map.byKey)
     {
-        writeStringz(stream, key);
+        encodeVLQ(stream, key.length);
+        stream.write(cast(ubyte[]) key);
         writeSBON(stream, &map[key]);
     }
 }

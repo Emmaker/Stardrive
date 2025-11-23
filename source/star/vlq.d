@@ -13,7 +13,7 @@ import star.stream;
  * @param value The integer to encode.
  * @return A byte array representing the VLQ-encoded integer.
  */
-ubyte[] encodeVLQ(long value)
+ubyte[] encodeVLQ(ulong value)
 {
     ubyte[] result;
     if (value == 0)
@@ -35,7 +35,7 @@ ubyte[] encodeVLQ(long value)
     return result;
 }
 
-void encodeVlQ(ref WritableStream stream, long value)
+void encodeVLQ(ref WritableStream stream, ulong value)
 {
     ubyte[] bytes = encodeVLQ(value);
     stream.write(bytes);

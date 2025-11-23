@@ -70,16 +70,28 @@ int main(string[] args)
         if (!std.file.isFile(inPath))
             err(format("%s is not file", input));
 
-        if (std.file.exists(output))
-        {
-            if (!force)
-                err(format("%s already exists", output));
-            if (!std.file.isDir(outPath))
-                err(format("%s is not a directory", output));
-        }
+        if (!std.file.exists(outPath))
+            err(format("%s does not exist", outPath));
+        if (!std.file.isDir(outPath))
+            err(format("%s is not a directory", output));
 
         auto stream = new FileStream(inPath);
-        auto assets = SBAsset6.loadFromStream(stream);
+        auto pak = new SBAsset6(stream);
+
+        foreach (i, bytes, asset; pak)
+        {
+            char[] exPath = cast(char[]) outPath.dup;
+            exPath ~= cast(char[]) asset;
+
+            if (std.file.exists(exPath) && !std.file.isFile(exPath))
+                err(format("%s is not a file", exPath));
+            mkdirRecurse(dirName(exPath));
+
+            auto ex = new FileStream(new File(exPath, "w"));
+            ex.seek(0);
+            ex.write(bytes);
+            ex.close();
+        }
     }
     else if (archive)
     {
