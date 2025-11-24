@@ -7,7 +7,6 @@ import std.range.interfaces;
 
 import star.stream;
 import star.sbon;
-import star.vlq;
 
 class SBAsset6
 {
@@ -50,7 +49,7 @@ public:
 
         metaMap = readSBONMap(stream);
 
-        ulong count = decodeVLQ(stream);
+        ulong count = readVLQ(stream);
         assetMap = new AssetMeta[count];
         // store for later streaming of strings
         ulong assetOff = stream.pos;
@@ -58,7 +57,7 @@ public:
         ulong stringBlockSz = 0;
         for (int i = 0; i < count; i++)
         {
-            ulong strLen = decodeVLQ(stream);
+            ulong strLen = readVLQ(stream);
             stringBlockSz += strLen;
             stream >> cast(int) strLen;
 
@@ -76,7 +75,7 @@ public:
         ulong index = 0;
         for (int i = 0; i < count; i++)
         {
-            ulong strLen = decodeVLQ(stream);
+            ulong strLen = readVLQ(stream);
             auto slc = stringBlock[index .. index + strLen];
             stream.read!char(slc);
             index += strLen;

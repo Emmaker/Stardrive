@@ -2,8 +2,8 @@ module star.sbon;
 
 import std.exception;
 import std.bitmanip;
+
 import star.stream;
-import star.vlq;
 
 enum SBONType : byte
 {
@@ -135,7 +135,7 @@ SBONValue* readSBON(ReadableStream stream)
         stream.read(bytes);
         return new SBONValue(bigEndianToNative!bool(bytes));
     case SBONType.number:
-        return new SBONValue(decodeVLQ(stream));
+        return new SBONValue(readVLQ(stream));
     case SBONType.str:
         return new SBONValue(readSBONString(stream));
     case SBONType.list:
@@ -145,12 +145,27 @@ SBONValue* readSBON(ReadableStream stream)
     default:
         // fallthrough
     }
-    assert(0, "Unrecognized SBON tag");
+    throw new Exception("Unrecognized SBON tag");
+}
+
+ulong readVLQ(ReadableStream stream)
+{
+    ulong result = 0;
+    ubyte[1] v;
+    do
+    {
+        stream.readBytes(v);
+
+        result <<= 7;
+        result |= v[0] & 0x7F;
+    }
+    while ((v[0] & 0x80) != 0);
+    return result;
 }
 
 string readSBONString(ReadableStream stream)
 {
-    ulong length = decodeVLQ(stream);
+    ulong length = readVLQ(stream);
     char[] carr = new char[length];
     stream.read(carr);
     return cast(string) carr;
@@ -158,7 +173,7 @@ string readSBONString(ReadableStream stream)
 
 SBONList readSBONList(ReadableStream stream)
 {
-    ulong count = decodeVLQ(stream);
+    ulong count = readVLQ(stream);
     SBONList list;
     for (int i = 0; i < count; i++)
         list[i] = *readSBON(stream);
@@ -167,7 +182,7 @@ SBONList readSBONList(ReadableStream stream)
 
 SBONMap readSBONMap(ReadableStream stream)
 {
-    ulong count = decodeVLQ(stream);
+    ulong count = readVLQ(stream);
     SBONMap map;
     for (int i = 0; i < count; i++)
         map[readSBONString(stream)] = *readSBON(stream);
@@ -196,12 +211,11 @@ void writeSBON(WritableStream stream, const SBONValue* root)
         return;
     case SBONType.number:
         writeTag();
-        encodeVLQ(stream, root.number);
+        writeVLQ(stream, root.number);
         return;
     case SBONType.str:
         writeTag();
-        encodeVLQ(stream, root.str.length);
-        stream.writeBytes(cast(ubyte[]) root.str);
+        writeSBONString(stream, root.str);
         return;
     case SBONType.list:
         writeTag();
@@ -214,13 +228,43 @@ void writeSBON(WritableStream stream, const SBONValue* root)
     default:
         // fallthrough
     }
-    assert(0, "Unrecognized SBON tag");
+    throw new Exception("Unrecognized SBON tag");
+}
+
+void writeVLQ(WritableStream stream, const ulong val)
+{
+    ubyte[] result;
+    ulong value = val;
+
+    if (value == 0)
+    {
+        result ~= 0;
+        goto write;
+    }
+
+    while (value > 0)
+    {
+        ubyte byteVal = value & 0x7F;
+        value >>= 7;
+        if (value != 0)
+            byteVal |= 0x80;
+        result ~= byteVal;
+    }
+write:
+    stream.writeBytes(result);
+}
+
+void writeSBONString(WritableStream stream, const string str)
+{
+    writeVLQ(stream, str.length);
+    // this is okay because we're not modifying the immutable type
+    stream.writeBytes(cast(ubyte[]) str);
 }
 
 void writeSBONList(WritableStream stream, const SBONList list)
 {
     ulong length = list.length;
-    encodeVLQ(stream, length);
+    writeVLQ(stream, length);
     for (int i = 0; i < length; i++)
         writeSBON(stream, &list[i]);
 }
@@ -228,10 +272,10 @@ void writeSBONList(WritableStream stream, const SBONList list)
 void writeSBONMap(WritableStream stream, const SBONMap map)
 {
     ulong length = map.length;
-    encodeVLQ(stream, length);
+    writeVLQ(stream, length);
     foreach (key; map.byKey)
     {
-        encodeVLQ(stream, key.length);
+        writeVLQ(stream, key.length);
         stream.writeBytes(cast(ubyte[]) key);
         writeSBON(stream, &map[key]);
     }
