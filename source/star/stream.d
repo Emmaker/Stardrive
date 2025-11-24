@@ -4,17 +4,28 @@ import std.exception;
 import std.conv;
 import std.string;
 import std.stdio;
+import std.format;
 
 interface ReadableStream
 {
-    ubyte[] read(ulong length);
-    // T[] rawRead(T)(T[] buf);
+    void readBytes(ubyte[] bytes);
+
+    void read(T)(T[] buf)
+    {
+        auto bytes = cast(ubyte*) buf;
+        readBytes(bytes[0 .. T.sizeof * buf.length]);
+    }
 }
 
 interface WritableStream
 {
-    void write(ubyte[] bytes);
-    // void rawWrite(T)(T[] buf);
+    void writeBytes(ubyte[] bytes);
+
+    void write(T)(T[] buf)
+    {
+        auto bytes = cast(ubyte*) buf;
+        writeBytes(bytes[0 .. T.sizeof * buf.length]);
+    }
 }
 
 interface SeekableStream
@@ -35,7 +46,7 @@ interface SeekableStream
 
 final class FileStream : ReadableStream, WritableStream, SeekableStream
 {
-    private File *file;
+    private File* file;
     private ulong index;
 
     this(const string path)
@@ -43,7 +54,7 @@ final class FileStream : ReadableStream, WritableStream, SeekableStream
         this(new File(path, "rw"));
     }
 
-    this (File *file)
+    this(File* file)
     {
         this.file = file;
         index = file.tell();
@@ -59,32 +70,16 @@ final class FileStream : ReadableStream, WritableStream, SeekableStream
         file.close();
     }
 
-    ubyte[] read(ulong len)
+    void readBytes(ubyte[] bytes)
     {
-        ubyte[] buf = new ubyte[len];
-        index += len;
-        file.rawRead!ubyte(buf);
-
-        return buf;
+        auto read = file.rawRead!ubyte(bytes);
+        index += read.length;
     }
 
-    T[] rawRead(T)(T[] buf)
-    {
-        auto slice = file.rawRead!T(buf);
-        index += slice.length;
-        return slice;
-    }
-
-    void write(ubyte[] bytes)
+    void writeBytes(ubyte[] bytes)
     {
         file.rawWrite!ubyte(bytes);
         index += bytes.length;
-    }
-
-    void rawWrite(T)(T[] buf)
-    {
-        auto slice = file.rawWrite!T(buf);
-        index += slice.length;
     }
 
     void seek(ulong pos)
@@ -96,50 +91,5 @@ final class FileStream : ReadableStream, WritableStream, SeekableStream
     @property ulong pos()
     {
         return index;
-    }
-}
-
-final class StringStream : ReadableStream, SeekableStream
-{
-    private const string str;
-    private ulong index;
-
-    this(const string str)
-    {
-        index = 0;
-        this.str = str;
-    }
-
-    ubyte[] read(ulong len)
-    {
-        ubyte[] ret = cast(ubyte[]) str[index .. index + len].dup;
-        index += len;
-        return ret;
-    }
-
-    void seek(ulong pos)
-    {
-        index = (pos) < str.length ? pos : str.length;
-    }
-
-    @property ulong pos()
-    {
-        return index;
-    }
-}
-
-final class StringBuilderStream : WritableStream
-{
-    private char[] builder;
-
-    void write(ubyte[] bytes)
-    {
-        ulong length = builder.length;
-        builder ~= cast(char[]) bytes;
-    }
-
-    string finalize()
-    {
-        return cast(string) builder;
     }
 }

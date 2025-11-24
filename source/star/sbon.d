@@ -120,17 +120,20 @@ struct SBONValue
 
 SBONValue* readSBON(ReadableStream stream)
 {
-    ubyte tag = stream.read(1)[0];
-    switch (tag)
+    ubyte[1] tag;
+    stream.readBytes(tag);
+    switch (tag[0])
     {
     case SBONType.nil:
         return new SBONValue();
     case SBONType.dbl:
-        ubyte[double.sizeof] bytes = stream.read(double.sizeof);
-        return new SBONValue(littleEndianToNative!double(bytes));
+        ubyte[double.sizeof] bytes;
+        stream.read(bytes);
+        return new SBONValue(bigEndianToNative!double(bytes));
     case SBONType.boolean:
-        ubyte[1] bytes = stream.read(1);
-        return new SBONValue(littleEndianToNative!bool(bytes));
+        ubyte[1] bytes;
+        stream.read(bytes);
+        return new SBONValue(bigEndianToNative!bool(bytes));
     case SBONType.number:
         return new SBONValue(decodeVLQ(stream));
     case SBONType.str:
@@ -148,7 +151,8 @@ SBONValue* readSBON(ReadableStream stream)
 string readSBONString(ReadableStream stream)
 {
     ulong length = decodeVLQ(stream);
-    char[] carr = cast(char[]) stream.read(length);
+    char[] carr = new char[length];
+    stream.read(carr);
     return cast(string) carr;
 }
 
@@ -174,7 +178,7 @@ void writeSBON(WritableStream stream, const SBONValue* root)
 {
     void writeTag()
     {
-        stream.write(nativeToLittleEndian(root.type));
+        stream.write(nativeToBigEndian(root.type));
     }
 
     switch (root.type)
@@ -184,11 +188,11 @@ void writeSBON(WritableStream stream, const SBONValue* root)
         return;
     case SBONType.dbl:
         writeTag();
-        stream.write(nativeToLittleEndian(root.dbl));
+        stream.write(nativeToBigEndian(root.dbl));
         return;
     case SBONType.boolean:
         writeTag();
-        stream.write(nativeToLittleEndian(root.boolean));
+        stream.write(nativeToBigEndian(root.boolean));
         return;
     case SBONType.number:
         writeTag();
@@ -197,7 +201,7 @@ void writeSBON(WritableStream stream, const SBONValue* root)
     case SBONType.str:
         writeTag();
         encodeVLQ(stream, root.str.length);
-        stream.write(cast(ubyte[]) root.str);
+        stream.writeBytes(cast(ubyte[]) root.str);
         return;
     case SBONType.list:
         writeTag();
@@ -228,7 +232,7 @@ void writeSBONMap(WritableStream stream, const SBONMap map)
     foreach (key; map.byKey)
     {
         encodeVLQ(stream, key.length);
-        stream.write(cast(ubyte[]) key);
+        stream.writeBytes(cast(ubyte[]) key);
         writeSBON(stream, &map[key]);
     }
 }

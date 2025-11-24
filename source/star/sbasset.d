@@ -31,18 +31,21 @@ public:
     {
         this.stream = stream;
 
-        static const string magic = "SBAsset6";
-        static const string metaMagic = "INDEX";
+        static const char[] magic = "SBAsset6";
+        static const char[] metaMagic = "INDEX";
 
-        string rMagic = cast(string) stream.read(magic.length);
+        char[magic.length] rMagic;
+        stream.read!char(rMagic);
         enforce!Exception(rMagic == magic, "Invalid magic");
 
-        ubyte[ulong.sizeof] metaBytes = stream.read(ulong.sizeof);
+        ubyte[ulong.sizeof] metaBytes;
+        stream.read(metaBytes);
         ulong metaOff = bigEndianToNative!ulong(metaBytes);
 
         stream.seek(metaOff);
 
-        string rMetaMagic = cast(string) stream.read(metaMagic.length);
+        char[metaMagic.length] rMetaMagic;
+        stream.read(rMetaMagic);
         enforce!Exception(rMetaMagic == metaMagic, "Invalid metadata magic");
 
         metaMap = readSBONMap(stream);
@@ -59,9 +62,10 @@ public:
             stringBlockSz += strLen;
             stream >> cast(int) strLen;
 
-            ubyte[ulong.sizeof] ul = stream.read(ulong.sizeof);
+            ubyte[ulong.sizeof] ul;
+            stream.read(ul);
             assetMap[i].offset = bigEndianToNative!ulong(ul);
-            ul = stream.read(ulong.sizeof);
+            stream.read(ul);
             assetMap[i].size = bigEndianToNative!ulong(ul);
         }
 
@@ -74,7 +78,7 @@ public:
         {
             ulong strLen = decodeVLQ(stream);
             auto slc = stringBlock[index .. index + strLen];
-            stream.rawRead!char(slc);
+            stream.read!char(slc);
             index += strLen;
 
             assetMap[i].name = slc;
@@ -112,9 +116,10 @@ public:
         foreach (i; 0 .. assetMap.length)
         {
             stream.seek(assetMap[i].offset);
-            result = dg(i,
-                stream.read(assetMap[i].size),
-                cast(string) assetMap[i].name);
+            auto bytes = new ubyte[assetMap[i].size];
+            stream.read(bytes);
+
+            result = dg(i, bytes, cast(string) assetMap[i].name);
             if (result)
                 break;
         }
@@ -127,14 +132,17 @@ public:
             if (name == mapName)
             {
                 stream.seek(assetMap[i].offset);
-                return stream.read(assetMap[i].size);
+                auto bytes = new ubyte[assetMap[i].size];
+                stream.read(bytes);
+                return bytes;
             }
         throw new Exception("No asset with that name");
     }
 
     ubyte[] opIndex(ulong i)
     {
-        stream.seek(assetMap[i].offset);
-        return stream.read(assetMap[i].size);
+        auto bytes = new ubyte[assetMap[i].size];
+        stream.read(bytes);
+        return bytes;
     }
 }

@@ -66,11 +66,12 @@ ulong decodeVLQ(ubyte[] bytes)
 ulong decodeVLQ(ReadableStream stream)
 {
     ubyte[] vlq;
-    ubyte v;
+    ubyte[1] v;
     do
     {
-        vlq ~= (v = stream.read(1)[0]);
+        stream.read(v);
+        vlq ~= v;
     }
-    while (v & 0x80);
+    while (v[0] & 0x80);
     return decodeVLQ(vlq);
 }
