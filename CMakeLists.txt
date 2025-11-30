@@ -4,6 +4,12 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 project(Stardrive LANGUAGES D C)
 
+include(DubPackage)
+find_dub_package(
+    NAME SDLD
+    PACKAGE_NAME sdl-d
+)
+
 include_directories(source)
 set(STAR_COMMON_SRC
     source/star/sbasset.d
