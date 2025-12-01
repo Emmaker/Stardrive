@@ -12,6 +12,7 @@ find_dub_package(
 
 include_directories(source)
 set(STAR_COMMON_SRC
+    source/star/assets.d
     source/star/sbasset.d
     source/star/sbon.d
     source/star/stream.d
