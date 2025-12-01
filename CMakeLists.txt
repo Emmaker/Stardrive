@@ -12,14 +12,25 @@ find_dub_package(
 
 include_directories(source)
 set(STAR_COMMON_SRC
+    source/posix/fd.d
+
     source/star/assets.d
     source/star/sbasset.d
     source/star/sbon.d
     source/star/stream.d
 )
 
+if(UNIX)
+    set(STAR_PLATFORM_SRC
+        source/posix/unix_fd.c
+    )
+else()
+    message(FATAL_ERROR "Unrecognized platform")
+endif()
+
 add_executable(assetpak
     ${STAR_COMMON_SRC}
+    ${STAR_PLATFORM_SRC}
 
     source/assetpak.d
 )
