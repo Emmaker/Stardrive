@@ -23,21 +23,12 @@ D is a very unique language that has some real benefits for this use case:
 Feature parity with the vanilla engine comes first and foremost, of course.
 Additional goals include:
 - Porting OpenStarbound features and Lua bindings
-- Optimized Lua runtime (function address vectors and/or machine compilation?)
+- Optimized Lua runtime with [Ravi](https://github.com/dibyendumajumdar/ravi)
 - Multi-threading
 - New asset format with richer metadata, and optimized for streaming over networks and into memory
 - Built-in mod distribution tooling for non-Steam users
 
 ## Building
-MSYS2
-Compiling and building the project requires Meson, the Dub package manager, and any D2-compiler (LDC2 preferred).
+
+Compiling and building the project requires CMake, the DUB package manager, and any D2 compiler (LDC2 preferred).
 Support for POSIX-compatible systems comes first and foremost, building on Windows may require Cygwin or similar.
-
-The following packages from Dub must be built locally before building Stardrive:
-- sdl-d
-
-To build Stardrive itself, invoke the following commands in your shell of choice:
-```
-meson setup builddir
-meson compile -C builddir
-```

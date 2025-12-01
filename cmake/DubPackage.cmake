@@ -47,6 +47,15 @@ function(find_dub_package)
         message(FATAL_ERROR "Failed to fetch DUB package ${DP_PACKAGE_NAME}")
     endif()
 
+    execute_process(
+        COMMAND ${DUB_BIN} build ${DP_PACKAGE_FULLNAME}
+        RESULT_VARIABLE BUILD_RESULT
+    )
+
+    if(NOT BUILD_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to build DUB package ${DP_PACKAGE_NAME}")
+    endif()
+
     # Obtain a description of the dub package
     execute_process(
         COMMAND ${DUB_BIN} describe ${DP_PACKAGE_NAME}
@@ -67,10 +76,11 @@ function(find_dub_package)
     # Extract the target object name
     string(JSON DUB_TARGET_NAME GET "${DUB_DESC}" "packages" 0 "targetFileName")
 
-    set("${DP_NAME}_LIBRARY" "${DUB_TARGET_PATH}/${DUB_TARGET_NAME}" CACHE STRING "")
+    set("${DP_NAME}_LIBRARY" "${DUB_TARGET_PATH}/${DUB_TARGET_NAME}" CACHE STRING
+        "Where the object library of the package lives")
 
     string(JSON DUB_IMPORT_PATHS GET "${DUB_DESC}" "packages" 0 "importPaths")
-    string(JSON L LENGTH "${DUB_IMPORT_PATHS}" )
+    string(JSON L LENGTH "${DUB_IMPORT_PATHS}")
     math(EXPR L "${L}-1")
 
     set("${DP_NAME}_INCLUDE_DIR")
@@ -79,5 +89,6 @@ function(find_dub_package)
         list(APPEND "${DP_NAME}_INCLUDE_DIR" "${DUB_PATH}/${P}")
     endforeach()
 
-    set("${DP_NAME}_INCLUDE_DIR" ${${DP_NAME}_INCLUDE_DIR} CACHE STRING "")
+    set("${DP_NAME}_INCLUDE_DIR" ${${DP_NAME}_INCLUDE_DIR} CACHE STRING
+        "Directories to include when building against the package")
 endfunction()
