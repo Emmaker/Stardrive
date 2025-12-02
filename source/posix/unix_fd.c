@@ -1,101 +1,86 @@
 #include <fcntl.h>
-#include <unistd.h>
 #include <stdbool.h>
+#include <unistd.h>
 
-enum _FDMode { R = 0, W = 1, RW = 2 };
+#include "fdmode.c"
 
-unsigned long posix_open(char *path, int mode) {
-  unsigned long fd;
-  fd = 0;
+bool posix_open(char *path, int mode, unsigned long *fd) {
+  unsigned long out;
 
   switch (mode) {
   case R:
-    fd = open(path, O_RDONLY | O_CREAT,
-              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    fd = fd == -1 ? 0 : fd;
+    out = open(path, O_RDONLY | O_CREAT,
+               S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     break;
   case W:
-    fd = open(path, O_WRONLY | O_CREAT,
-              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    fd = fd == -1 ? 0 : fd;
+    out = open(path, O_WRONLY | O_CREAT,
+               S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     break;
   case RW:
-    fd = open(path, O_RDWR | O_CREAT,
-              S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    fd = fd == -1 ? 0 : fd;
+    out = open(path, O_RDWR | O_CREAT,
+               S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     break;
   }
-  return fd;
+  if (out == -1)
+    return false;
+
+  *fd = out;
+  return true;
 }
 
 void posix_close(unsigned long fd) { close(fd); }
 
-unsigned long posix_read(unsigned long fd, char *buf, unsigned long len) {
+bool posix_read(unsigned long fd, char *buf, unsigned long *len) {
   int ret;
+  ret = read(fd, buf, *len);
 
-  ret = read(fd, buf, len);
-  return ret == -1 ? 0 : ret;
+  if (ret == -1)
+    return false;
+
+  *len = ret;
+  return true;
 }
 
-unsigned long posix_write(unsigned long fd, char *buf, unsigned long len) {
+bool posix_write(unsigned long fd, char *buf, unsigned long *len) {
   int ret;
+  ret = write(fd, buf, *len);
 
-  ret = write(fd, buf, len);
-  return ret == -1 ? 0 : ret;
+  if (ret == -1)
+    return false;
+
+  *len = ret;
+  return true;
 }
 
-unsigned long posix_seek(unsigned long fd, unsigned long pos) {
-    int ret;
+bool posix_seek(unsigned long fd, unsigned long *pos) {
+  int ret;
+  ret = lseek(fd, *pos, SEEK_SET);
 
-    ret = lseek(fd, pos, SEEK_SET);
-    return ret == -1 ? 0: ret;
+  if (ret == -1)
+    return false;
+
+  *pos = ret;
+  return true;
 }
 
-bool posix_rewind(unsigned long fd) {
-    int ret;
+bool posix_tell(unsigned long fd, unsigned long *pos) {
+  int ret;
+  ret = lseek(fd, 0, SEEK_CUR);
 
-    ret = lseek(fd, 0, SEEK_SET);
-    return ret != -1;
+  if (ret == -1)
+    return false;
+
+  *pos = ret;
+  return true;
 }
 
-unsigned long posix_tell(unsigned long fd) {
-    int ret;
+bool posix_duplicate(unsigned long fd, unsigned long *fd2) {
+  int ret;
+  ret = dup(fd);
 
-    ret = lseek(fd, 0, SEEK_CUR);
-    return ret == -1 ? 0 : ret;
-}
+  if (ret == -1)
+    return false;
 
-int posix_begin(unsigned long fd) {
-    int ret;
-
-    ret = lseek(fd, 0, SEEK_CUR);
-    if (ret == -1)
-        return 2;
-
-    return (ret == 0);
-}
-
-int posix_eof(unsigned long fd) {
-    int ret;
-    int pos;
-
-    ret = lseek(fd, 0, SEEK_CUR);
-    if (ret == -1)
-        return 2;
-
-    pos = lseek(fd, 0, SEEK_END);
-    if (pos == -1)
-        return 2;
-
-    if (lseek(fd, ret, SEEK_SET) == -1)
-        return 2;
-
-    return (ret == pos);
-}
-
-unsigned long posix_duplicate(unsigned long fd) {
-    int ret;
-
-    ret = dup(fd);
-    return ret == -1 ? 0 : ret;
+  *fd2 = ret;
+  return false;
 }
