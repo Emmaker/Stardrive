@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-module star.stream;
+module star.stream.file;
 
 import std.exception;
 import std.conv;
@@ -23,45 +23,9 @@ import std.string;
 import std.stdio;
 import std.format;
 
-interface ReadableStream
-{
-    void readBytes(ubyte[] bytes);
+import star.stream.istream;
 
-    void read(T)(T[] buf)
-    {
-        auto bytes = cast(ubyte*) buf;
-        readBytes(bytes[0 .. T.sizeof *buf.length]);
-    }
-}
-
-interface WritableStream
-{
-    void writeBytes(ubyte[] bytes);
-
-    void write(T)(T[] buf)
-    {
-        auto bytes = cast(ubyte*) buf;
-        writeBytes(bytes[0 .. T.sizeof *buf.length]);
-    }
-}
-
-interface SeekableStream
-{
-    void seek(ulong position);
-    @property ulong pos();
-
-    void opBinary(string op : ">>")(const int offset)
-    {
-        seek(pos + offset);
-    }
-
-    void opBinary(string op : "<<")(const int offset)
-    {
-        seek(pos - offset);
-    }
-}
-
-final class FileStream : ReadableStream, WritableStream, SeekableStream
+final class FileStream : IReadableStream, IWritableStream, ISeekableStream
 {
     private File* file;
     private ulong index;

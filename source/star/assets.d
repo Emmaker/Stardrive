@@ -7,17 +7,17 @@ import std.bitmanip;
 import star.stream;
 import star.sbon;
 
-interface AssetSource
+interface IAssetSource
 {
-    interface AssetStream : ReadableStream, WritableStream
+    interface IAssetStream : IReadableStream, IWritableStream
     {
     }
 
-    AssetStream open(string path);
+    IAssetStream open(string path);
     @property SBONMap metadata();
 }
 
-class SBAsset6 : AssetSource
+class SBAsset6 : IAssetSource
 {
 private:
     FileStream stream;
@@ -32,7 +32,7 @@ private:
     Asset[string] assets;
 
 public:
-    AssetStream open(string path)
+    IAssetStream open(string path)
     {
         return null;
     }

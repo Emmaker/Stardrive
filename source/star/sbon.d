@@ -135,7 +135,7 @@ struct SBONValue
     }
 }
 
-SBONValue* readSBON(ReadableStream stream)
+SBONValue* readSBON(IReadableStream stream)
 {
     ubyte[1] tag;
     stream.readBytes(tag);
@@ -165,7 +165,7 @@ SBONValue* readSBON(ReadableStream stream)
     throw new Exception("Unrecognized SBON tag");
 }
 
-ulong readVLQ(ReadableStream stream)
+ulong readVLQ(IReadableStream stream)
 {
     ulong result = 0;
     ubyte[1] v;
@@ -180,7 +180,7 @@ ulong readVLQ(ReadableStream stream)
     return result;
 }
 
-string readSBONString(ReadableStream stream)
+string readSBONString(IReadableStream stream)
 {
     ulong length = readVLQ(stream);
     char[] carr = new char[length];
@@ -188,7 +188,7 @@ string readSBONString(ReadableStream stream)
     return cast(string) carr;
 }
 
-SBONList readSBONList(ReadableStream stream)
+SBONList readSBONList(IReadableStream stream)
 {
     ulong count = readVLQ(stream);
     SBONList list;
@@ -197,7 +197,7 @@ SBONList readSBONList(ReadableStream stream)
     return list;
 }
 
-SBONMap readSBONMap(ReadableStream stream)
+SBONMap readSBONMap(IReadableStream stream)
 {
     ulong count = readVLQ(stream);
     SBONMap map;
@@ -206,7 +206,7 @@ SBONMap readSBONMap(ReadableStream stream)
     return map;
 }
 
-void writeSBON(WritableStream stream, const SBONValue* root)
+void writeSBON(IWritableStream stream, const SBONValue* root)
 {
     void writeTag()
     {
@@ -248,7 +248,7 @@ void writeSBON(WritableStream stream, const SBONValue* root)
     throw new Exception("Unrecognized SBON tag");
 }
 
-void writeVLQ(WritableStream stream, const ulong val)
+void writeVLQ(IWritableStream stream, const ulong val)
 {
     ubyte[] result;
     ulong value = val;
@@ -271,14 +271,14 @@ write:
     stream.writeBytes(result);
 }
 
-void writeSBONString(WritableStream stream, const string str)
+void writeSBONString(IWritableStream stream, const string str)
 {
     writeVLQ(stream, str.length);
     // this is okay because we're not modifying the immutable type
     stream.writeBytes(cast(ubyte[]) str);
 }
 
-void writeSBONList(WritableStream stream, const SBONList list)
+void writeSBONList(IWritableStream stream, const SBONList list)
 {
     ulong length = list.length;
     writeVLQ(stream, length);
@@ -286,7 +286,7 @@ void writeSBONList(WritableStream stream, const SBONList list)
         writeSBON(stream, &list[i]);
 }
 
-void writeSBONMap(WritableStream stream, const SBONMap map)
+void writeSBONMap(IWritableStream stream, const SBONMap map)
 {
     ulong length = map.length;
     writeVLQ(stream, length);
